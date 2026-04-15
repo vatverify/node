@@ -1,0 +1,41 @@
+name: On API version updated
+
+on:
+  repository_dispatch:
+    types: [api-spec-updated]
+  workflow_dispatch:
+
+jobs:
+  resync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run sync-openapi
+      - run: npm run gen-types
+      - name: Check for type drift
+        id: diff
+        run: |
+          if git diff --quiet openapi.json src/generated/types.ts; then
+            echo "no_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "no_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Open PR on drift
+        if: steps.diff.outputs.no_changes == 'false'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: resync openapi.json + regen types"
+          title: "chore: resync openapi.json + regen types"
+          body: |
+            Automated resync triggered by an `api-spec-updated` dispatch from `vatverify/api`.
+
+            Please review the type diff carefully — breaking changes require a major version bump.
+          branch: auto/resync-openapi
+          base: main
