@@ -22,6 +22,10 @@ export type {
   RatesListMeta,
   ErrorEnvelope,
   HealthResponse,
+  WebhookEndpointPublic,
+  WebhookEndpointWithSecret,
+  WebhookListResponse,
+  WebhookTestResponse,
 } from './types.js';
 
 // Error classes (also importable from '@vatverify/node/errors')
@@ -35,5 +39,6 @@ export {
   RegistryError,
   NetworkError,
   TimeoutError,
+  WebhookLimitError,
 } from './errors.js';
 export type { ErrorCode, RateLimitInfo } from './errors.js';

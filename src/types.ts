@@ -51,3 +51,26 @@ export type ErrorEnvelope = components['schemas']['ErrorEnvelope'];
 
 /** Health response shape. */
 export type HealthResponse = components['schemas']['HealthResponse'];
+
+/** A webhook endpoint as returned by GET /v1/webhooks (no secret). */
+export type WebhookEndpointPublic = {
+  id: string;
+  url: string;
+  created_at: string;
+};
+
+/** Response from POST /v1/webhooks — includes secret (shown once). */
+export type WebhookEndpointWithSecret = WebhookEndpointPublic & {
+  secret: string;
+};
+
+/** Response from GET /v1/webhooks. */
+export type WebhookListResponse = {
+  data: WebhookEndpointPublic[];
+};
+
+/** Response from POST /v1/webhooks/{id}/test. */
+export type WebhookTestResponse = {
+  delivered: boolean;
+  status: number;
+};

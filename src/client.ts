@@ -4,12 +4,14 @@ import { validate as validateFn, validateBatch as validateBatchFn } from './meth
 import { decide as decideFn } from './methods/decide.js';
 import * as RatesMethods from './methods/rates.js';
 import { health as healthFn } from './methods/health.js';
+import * as WebhooksMethods from './methods/webhooks.js';
 import type {
   ValidateRequest, ValidateResponse,
   ValidateBatchRequest, ValidateBatchResponse,
   DecideRequest, DecideResponse,
   RatesListResponse, RatesSingleResponse,
   HealthResponse,
+  WebhookEndpointWithSecret, WebhookListResponse, WebhookTestResponse,
 } from './types.js';
 
 const SDK_VERSION = '0.1.0';
@@ -118,6 +120,24 @@ export class Vatverify {
       },
       get(country: string, options?: { request_options?: RequestOptions }): Promise<RatesSingleResponse> {
         return RatesMethods.get(self, country, options?.request_options);
+      },
+    };
+  }
+
+  get webhooks() {
+    const self = this;
+    return {
+      create(url: string, options?: RequestOptions): Promise<WebhookEndpointWithSecret> {
+        return WebhooksMethods.create(self, url, options);
+      },
+      list(options?: RequestOptions): Promise<WebhookListResponse> {
+        return WebhooksMethods.list(self, options);
+      },
+      delete(id: string, options?: RequestOptions): Promise<void> {
+        return WebhooksMethods.del(self, id, options);
+      },
+      test(id: string, options?: RequestOptions): Promise<WebhookTestResponse> {
+        return WebhooksMethods.test(self, id, options);
       },
     };
   }
