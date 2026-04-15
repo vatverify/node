@@ -127,17 +127,17 @@ export class Vatverify {
   get webhooks() {
     const self = this;
     return {
-      create(url: string, options?: RequestOptions): Promise<WebhookEndpointWithSecret> {
-        return WebhooksMethods.create(self, url, options);
+      create(url: string, options?: { request_options?: RequestOptions }): Promise<WebhookEndpointWithSecret> {
+        return WebhooksMethods.create(self, url, options?.request_options);
       },
-      list(options?: RequestOptions): Promise<WebhookListResponse> {
-        return WebhooksMethods.list(self, options);
+      list(options?: { request_options?: RequestOptions }): Promise<WebhookListResponse> {
+        return WebhooksMethods.list(self, options?.request_options);
       },
-      delete(id: string, options?: RequestOptions): Promise<void> {
-        return WebhooksMethods.del(self, id, options);
+      delete(id: string, options?: { request_options?: RequestOptions }): Promise<void> {
+        return WebhooksMethods.del(self, id, options?.request_options);
       },
-      test(id: string, options?: RequestOptions): Promise<WebhookTestResponse> {
-        return WebhooksMethods.test(self, id, options);
+      test(id: string, options?: { request_options?: RequestOptions }): Promise<WebhookTestResponse> {
+        return WebhooksMethods.test(self, id, options?.request_options);
       },
     };
   }

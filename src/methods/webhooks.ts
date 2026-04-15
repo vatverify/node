@@ -39,7 +39,7 @@ export async function del(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (client as any)._request({
     method: 'DELETE',
-    path: `/v1/webhooks/${id}`,
+    path: `/v1/webhooks/${encodeURIComponent(id)}`,
     request_options: options,
   });
 }
@@ -52,7 +52,7 @@ export async function test(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (client as any)._request({
     method: 'POST',
-    path: `/v1/webhooks/${id}/test`,
+    path: `/v1/webhooks/${encodeURIComponent(id)}/test`,
     request_options: options,
   }) as Promise<WebhookTestResponse>;
 }
