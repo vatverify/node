@@ -1,2 +1,39 @@
-// Placeholder — wiring happens in later tasks.
-export const SDK_VERSION = '0.1.0';
+export { Vatverify, SDK_VERSION } from './client.js';
+export type { VatverifyConfig, RequestOptions } from './client.js';
+
+// Public types (from OpenAPI + input types)
+export type {
+  CountryRate,
+  ValidateRequest,
+  ValidateResponse,
+  ValidateData,
+  ValidateBatchRequest,
+  ValidateBatchResponse,
+  BatchResultItem,
+  BatchSummary,
+  BatchPerItemError,
+  DecideRequest,
+  DecideResponse,
+  DecideData,
+  RatesListResponse,
+  RatesSingleResponse,
+  Meta,
+  RatesMeta,
+  RatesListMeta,
+  ErrorEnvelope,
+  HealthResponse,
+} from './types.js';
+
+// Error classes (also importable from '@vatverify/node/errors')
+export {
+  VatverifyError,
+  AuthError,
+  ValidationError,
+  NotFoundError,
+  PlanError,
+  RateLimitError,
+  RegistryError,
+  NetworkError,
+  TimeoutError,
+} from './errors.js';
+export type { ErrorCode, RateLimitInfo } from './errors.js';
