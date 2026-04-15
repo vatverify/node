@@ -21,13 +21,59 @@ export interface ResponseHookInfo {
   attempt_count: number;
 }
 
+const RETRY_STATUSES = new Set([429, 502, 503, 504]);
+const BACKOFF_BASE_MS = 100;
+const BACKOFF_CAP_MS = 2000;
+const RETRY_AFTER_CAP_MS = 30_000;
+
+function shouldRetry(err: unknown, statusCode?: number): boolean {
+  if (statusCode !== undefined && statusCode > 0) return RETRY_STATUSES.has(statusCode);
+  const anyErr = err as { code?: string } | null;
+  if (!anyErr) return false;
+  if (anyErr.code === 'network_error' || anyErr.code === 'timeout') return true;
+  return false;
+}
+
+function backoffMs(attempt: number, jitter: () => number = Math.random): number {
+  const exp = Math.min(BACKOFF_CAP_MS, BACKOFF_BASE_MS * Math.pow(2, attempt));
+  return exp + Math.floor(jitter() * 100);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Low-level request pipeline. Combines AbortController-based timeout,
- * external-signal propagation, and error mapping. In this baseline version
- * there is no retry loop — that is added in the follow-up task.
+ * external-signal propagation, error mapping, and a retry loop with
+ * exponential backoff + jitter. Retries on network/timeout errors and
+ * on 429/502/503/504 responses. Honors Retry-After on 429 (capped at 30s).
  */
 export async function doRequest<T = unknown>(input: DoRequestInput): Promise<T> {
-  return attemptOnce<T>(input, 1);
+  const maxAttempts = input.max_retries + 1;
+  let lastErr: unknown = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await attemptOnce<T>(input, attempt);
+    } catch (err) {
+      lastErr = err;
+      if (attempt === maxAttempts) throw err;
+
+      const status = (err as { status_code?: number }).status_code;
+      if (!shouldRetry(err, status)) throw err;
+
+      let delay = backoffMs(attempt);
+      if (status === 429) {
+        const retry_after_s = (err as { retry_after?: number }).retry_after ?? 0;
+        if (retry_after_s > 0) {
+          delay = Math.min(retry_after_s * 1000, RETRY_AFTER_CAP_MS);
+        }
+      }
+      await sleep(delay);
+    }
+  }
+  throw lastErr;
 }
 
 async function attemptOnce<T>(input: DoRequestInput, attempt_count: number): Promise<T> {

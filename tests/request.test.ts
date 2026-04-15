@@ -155,3 +155,154 @@ describe('doRequest — baseline', () => {
     }
   });
 });
+
+describe('doRequest — retries', () => {
+  let originalFetch: typeof globalThis.fetch;
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.useRealTimers();
+  });
+
+  async function advanceAll() {
+    await vi.runAllTimersAsync();
+  }
+
+  it('retries on 502 up to max_retries', async () => {
+    const fetchMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: 'registry_unavailable' }, meta: {} }), {
+        status: 502,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: 'registry_unavailable' }, meta: {} }), {
+        status: 502,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: { ok: true }, meta: {} }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    globalThis.fetch = fetchMock;
+
+    const p = doRequest({
+      method: 'GET',
+      url: `${BASE}/v1/validate`,
+      headers: { Authorization: AUTH },
+      timeout_ms: 30_000,
+      max_retries: 2,
+      fetch_impl: fetchMock,
+    });
+    await advanceAll();
+    const out = await p;
+    expect(out).toEqual({ data: { ok: true }, meta: {} });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('retries on network errors up to max_retries', async () => {
+    const fetchMock = vi.fn();
+    fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'));
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: {}, meta: {} }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    globalThis.fetch = fetchMock;
+
+    const p = doRequest({
+      method: 'GET',
+      url: `${BASE}/v1/validate`,
+      headers: { Authorization: AUTH },
+      timeout_ms: 30_000,
+      max_retries: 2,
+      fetch_impl: fetchMock,
+    });
+    await advanceAll();
+    await p;
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does NOT retry on 400/401/402/404', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: { code: 'unauthorized' }, meta: {} }), {
+        status: 401,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    globalThis.fetch = fetchMock;
+    const p = doRequest({
+      method: 'GET',
+      url: `${BASE}/v1/validate`,
+      headers: { Authorization: AUTH },
+      timeout_ms: 30_000,
+      max_retries: 2,
+      fetch_impl: fetchMock,
+    });
+    await advanceAll();
+    await expect(p).rejects.toThrow();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('honors Retry-After header on 429', async () => {
+    const fetchMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: 'rate_limited' }, meta: {} }), {
+        status: 429,
+        headers: { 'content-type': 'application/json', 'retry-after': '2' },
+      }),
+    );
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: {}, meta: {} }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    globalThis.fetch = fetchMock;
+
+    const p = doRequest({
+      method: 'GET',
+      url: `${BASE}/v1/validate`,
+      headers: { Authorization: AUTH },
+      timeout_ms: 30_000,
+      max_retries: 2,
+      fetch_impl: fetchMock,
+    });
+    await vi.advanceTimersByTimeAsync(2000);
+    await p;
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('final error has attempt_count matching total attempts', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: { code: 'registry_unavailable' }, meta: {} }), {
+        status: 502,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    globalThis.fetch = fetchMock;
+    const p = doRequest({
+      method: 'GET',
+      url: `${BASE}/v1/validate`,
+      headers: { Authorization: AUTH },
+      timeout_ms: 30_000,
+      max_retries: 2,
+      fetch_impl: fetchMock,
+    });
+    await advanceAll();
+    try {
+      await p;
+      throw new Error('expected throw');
+    } catch (e) {
+      expect((e as VatverifyError).attempt_count).toBe(3);
+    }
+  });
+});
