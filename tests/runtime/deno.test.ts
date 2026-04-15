@@ -1,5 +1,6 @@
 // Runs under Deno via `deno test --allow-net`. Uses Deno.test API.
-import { Vatverify } from '../../src/index.js';
+// Imports from the built ESM bundle (CI builds before running Deno).
+import { Vatverify } from '../../dist/index.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const Deno: any;

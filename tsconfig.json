@@ -20,5 +20,11 @@
     "types": ["node"]
   },
   "include": ["src/**/*", "tests/**/*", "scripts/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "tests/runtime/bun.test.ts",
+    "tests/runtime/deno.test.ts",
+    "tests/runtime/workers.test.ts"
+  ]
 }

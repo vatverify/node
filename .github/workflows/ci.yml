@@ -45,6 +45,7 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
+      - run: npm run build
       - run: deno test --allow-net --no-lock tests/runtime/deno.test.ts
 
   edge-runtime:
