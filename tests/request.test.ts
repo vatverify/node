@@ -247,8 +247,11 @@ describe('doRequest — retries', () => {
       max_retries: 2,
       fetch_impl: fetchMock,
     });
+    // No retries happen here — attach rejection handler BEFORE draining timers
+    // so the rejection isn't flagged as unhandled mid-drain.
+    const result = expect(p).rejects.toThrow();
     await advanceAll();
-    await expect(p).rejects.toThrow();
+    await result;
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -297,12 +300,12 @@ describe('doRequest — retries', () => {
       max_retries: 2,
       fetch_impl: fetchMock,
     });
+    // Attach a catch handler BEFORE draining timers so the rejection isn't
+    // flagged as unhandled while advanceAll() is draining.
+    const caught = p.catch((e) => e);
     await advanceAll();
-    try {
-      await p;
-      throw new Error('expected throw');
-    } catch (e) {
-      expect((e as VatverifyError).attempt_count).toBe(3);
-    }
+    const e = (await caught) as VatverifyError;
+    expect(e).toBeInstanceOf(VatverifyError);
+    expect(e.attempt_count).toBe(3);
   });
 });
