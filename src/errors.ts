@@ -5,6 +5,7 @@ export type ErrorCode =
   | 'country_unsupported'
   | 'country_unknown'
   | 'batch_too_large'
+  | 'webhook_limit_reached'
   | 'seller_country_unsupported'
   | 'b2c_not_supported'
   | 'buyer_vat_not_registered'
@@ -66,6 +67,13 @@ export class PlanError extends VatverifyError {
   constructor(message: string, init: VatverifyErrorInit) {
     super(message, init);
     this.name = 'PlanError';
+  }
+}
+
+export class WebhookLimitError extends VatverifyError {
+  constructor(message: string, init: VatverifyErrorInit) {
+    super(message, init);
+    this.name = 'WebhookLimitError';
   }
 }
 
@@ -166,6 +174,10 @@ export async function errorFromResponse(res: Response, attempt_count: number): P
     response_body: body,
     attempt_count,
   };
+
+  if (code === 'webhook_limit_reached') {
+    return new WebhookLimitError(message, baseInit);
+  }
 
   if (Cls === RateLimitError) {
     const retryAfterHeader = res.headers.get('retry-after');
