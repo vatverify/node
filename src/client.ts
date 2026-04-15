@@ -5,6 +5,7 @@ import { decide as decideFn } from './methods/decide.js';
 import * as RatesMethods from './methods/rates.js';
 import { health as healthFn } from './methods/health.js';
 import * as WebhooksMethods from './methods/webhooks.js';
+import * as AuditsMethods from './methods/audits.js';
 import type {
   ValidateRequest, ValidateResponse,
   ValidateBatchRequest, ValidateBatchResponse,
@@ -12,6 +13,7 @@ import type {
   RatesListResponse, RatesSingleResponse,
   HealthResponse,
   WebhookEndpointWithSecret, WebhookListResponse, WebhookTestResponse,
+  AuditResponse,
 } from './types.js';
 
 const SDK_VERSION = '0.1.0';
@@ -120,6 +122,15 @@ export class Vatverify {
       },
       get(country: string, options?: { request_options?: RequestOptions }): Promise<RatesSingleResponse> {
         return RatesMethods.get(self, country, options?.request_options);
+      },
+    };
+  }
+
+  get audits() {
+    const self = this;
+    return {
+      get(requestId: string, options?: { request_options?: RequestOptions }): Promise<AuditResponse> {
+        return AuditsMethods.get(self, requestId, options?.request_options);
       },
     };
   }

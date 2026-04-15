@@ -26,6 +26,8 @@ export type {
   WebhookEndpointWithSecret,
   WebhookListResponse,
   WebhookTestResponse,
+  AuditRecord,
+  AuditResponse,
 } from './types.js';
 
 // Error classes (also importable from '@vatverify/node/errors')

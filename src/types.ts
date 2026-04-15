@@ -74,3 +74,21 @@ export type WebhookTestResponse = {
   delivered: boolean;
   status: number;
 };
+
+/** A stored audit log record returned by GET /v1/audits/{request_id}. */
+export type AuditRecord = {
+  request_id: string;
+  endpoint: 'validate' | 'decide' | 'validate_batch';
+  response: unknown;
+  created_at: string;
+  expires_at: string;
+};
+
+/** Response envelope for GET /v1/audits/{request_id}. */
+export type AuditResponse = {
+  data: AuditRecord;
+  meta: {
+    request_id: string;
+    latency_ms: number;
+  };
+};
