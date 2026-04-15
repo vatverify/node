@@ -1,5 +1,16 @@
 import { doRequest, type ResponseHookInfo } from './request.js';
 import { detectRuntime } from './runtime.js';
+import { validate as validateFn, validateBatch as validateBatchFn } from './methods/validate.js';
+import { decide as decideFn } from './methods/decide.js';
+import * as RatesMethods from './methods/rates.js';
+import { health as healthFn } from './methods/health.js';
+import type {
+  ValidateRequest, ValidateResponse,
+  ValidateBatchRequest, ValidateBatchResponse,
+  DecideRequest, DecideResponse,
+  RatesListResponse, RatesSingleResponse,
+  HealthResponse,
+} from './types.js';
 
 const SDK_VERSION = '0.1.0';
 const DEFAULT_BASE_URL = 'https://api.vatverify.dev';
@@ -76,6 +87,34 @@ export class Vatverify {
     this.on_response = config.on_response;
     this.is_test_mode = api_key.startsWith(TEST_KEY_PREFIX);
     this.user_agent = buildUserAgent(config.user_agent_extra);
+  }
+
+  validate(input: ValidateRequest): Promise<ValidateResponse> {
+    return validateFn(this, input);
+  }
+
+  validateBatch(input: ValidateBatchRequest): Promise<ValidateBatchResponse> {
+    return validateBatchFn(this, input);
+  }
+
+  decide(input: DecideRequest): Promise<DecideResponse> {
+    return decideFn(this, input);
+  }
+
+  health(): Promise<HealthResponse> {
+    return healthFn(this);
+  }
+
+  get rates() {
+    const self = this;
+    return {
+      list(): Promise<RatesListResponse> {
+        return RatesMethods.list(self);
+      },
+      get(country: string): Promise<RatesSingleResponse> {
+        return RatesMethods.get(self, country);
+      },
+    };
   }
 
   /** Internal. Methods call this. */
