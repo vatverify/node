@@ -20,9 +20,9 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - run: npm run build
       - run: npm run test:types
       - run: npm run test:node-runtime
-      - run: npm run build
 
   bun-runtime:
     runs-on: ubuntu-latest
