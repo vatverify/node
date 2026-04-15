@@ -141,3 +141,40 @@ describe('Vatverify internal request pipeline', () => {
     expect(urlArg).not.toContain('cache=');
   });
 });
+
+describe('on_response hook', () => {
+  it('fires after a successful response with request_id and latency_ms', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: { valid: true, vat_number: 'DE811569869', country: { code: 'DE', name: 'Germany', vat: null }, company: null, verify_id: null, verified_at: '2026-04-15T10:00:00Z' },
+          meta: { request_id: 'req_hook', latency_ms: 80, cached: false, source: 'vies', source_status: 'live' },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json', 'x-request-id': 'req_hook' } },
+      ),
+    );
+    const hookSpy = vi.fn();
+    const client = new Vatverify({ api_key: 'vtv_live_x', fetch: fetchMock, on_response: hookSpy });
+    await client.validate({ vat_number: 'DE811569869' });
+    expect(hookSpy).toHaveBeenCalledOnce();
+    const info = hookSpy.mock.calls[0]![0];
+    expect(info.status_code).toBe(200);
+    expect(typeof info.latency_ms).toBe('number');
+    expect(typeof info.request_id).toBe('string');
+  });
+
+  it('fires on error responses too', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ error: { code: 'unauthorized', message: 'bad key' }, meta: { request_id: 'req_hook2' } }),
+        { status: 401, headers: { 'content-type': 'application/json', 'x-request-id': 'req_hook2' } },
+      ),
+    );
+    const hookSpy = vi.fn();
+    const client = new Vatverify({ api_key: 'vtv_live_x', fetch: fetchMock, on_response: hookSpy, max_retries: 0 });
+    await expect(client.validate({ vat_number: 'DE1' })).rejects.toThrow();
+    expect(hookSpy).toHaveBeenCalledOnce();
+    const info = hookSpy.mock.calls[0]![0];
+    expect(info.status_code).toBe(401);
+  });
+});

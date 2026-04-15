@@ -834,6 +834,12 @@
               "DE811569869",
               "FR44732829320"
             ]
+          },
+          "requester_vat_number": {
+            "type": "string",
+            "minLength": 4,
+            "description": "Your own VAT number. When provided, each VIES item is looked up via an authenticated consultation and the response includes a per-item `verify_id` — the official consultation identifier accepted by tax auditors as proof of verification. These calls always bypass the cache and count toward your quota. Not applicable for CH, LI, or NO registrations (those items will have `verify_id: null`).",
+            "example": "DE100000001"
           }
         },
         "required": [
@@ -1178,7 +1184,7 @@
         ],
         "operationId": "validateBatch",
         "summary": "Validate up to 50 VAT numbers in one request",
-        "description": "Validate up to 50 VAT numbers in a single request. Each item is normalized and routed to the correct registry (VIES/HMRC/BFS/BRREG) independently. Per-item successes and failures coexist in the 200 response under `data.results`. Cache hits do not count against your monthly quota.\n\nPro plan or Business plan required.",
+        "description": "Validate up to 50 VAT numbers in a single request. Each item is normalized and routed to the correct registry (VIES/HMRC/BFS/BRREG) independently. Per-item successes and failures coexist in the 200 response under `data.results`. Cache hits do not count against your monthly quota.\n\nPass `requester_vat_number` to obtain a per-item `verify_id` (VIES consultation number) for each EU result — useful for tax-audit trails. Calls with a requester always bypass the cache.\n\nPro plan or Business plan required.",
         "security": [
           {
             "bearerAuth": []

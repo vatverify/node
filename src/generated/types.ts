@@ -121,6 +121,8 @@ export interface paths {
          * Validate up to 50 VAT numbers in one request
          * @description Validate up to 50 VAT numbers in a single request. Each item is normalized and routed to the correct registry (VIES/HMRC/BFS/BRREG) independently. Per-item successes and failures coexist in the 200 response under `data.results`. Cache hits do not count against your monthly quota.
          *
+         *     Pass `requester_vat_number` to obtain a per-item `verify_id` (VIES consultation number) for each EU result — useful for tax-audit trails. Calls with a requester always bypass the cache.
+         *
          *     Pro plan or Business plan required.
          */
         post: operations["validateBatch"];
@@ -555,6 +557,11 @@ export interface components {
              *     ]
              */
             vat_numbers: string[];
+            /**
+             * @description Your own VAT number. When provided, each VIES item is looked up via an authenticated consultation and the response includes a per-item `verify_id` — the official consultation identifier accepted by tax auditors as proof of verification. These calls always bypass the cache and count toward your quota. Not applicable for CH, LI, or NO registrations (those items will have `verify_id: null`).
+             * @example DE100000001
+             */
+            requester_vat_number?: string;
         };
     };
     responses: never;

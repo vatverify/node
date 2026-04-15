@@ -89,30 +89,35 @@ export class Vatverify {
     this.user_agent = buildUserAgent(config.user_agent_extra);
   }
 
-  validate(input: ValidateRequest): Promise<ValidateResponse> {
-    return validateFn(this, input);
+  validate(input: ValidateRequest, options?: { request_options?: RequestOptions }): Promise<ValidateResponse> {
+    return validateFn(this, input, options?.request_options);
   }
 
-  validateBatch(input: ValidateBatchRequest): Promise<ValidateBatchResponse> {
-    return validateBatchFn(this, input);
+  validateBatch(input: ValidateBatchRequest, options?: { request_options?: RequestOptions }): Promise<ValidateBatchResponse> {
+    return validateBatchFn(this, input, options?.request_options);
   }
 
-  decide(input: DecideRequest): Promise<DecideResponse> {
-    return decideFn(this, input);
+  /**
+   * Determine the correct VAT treatment for a B2B transaction.
+   * B2B only — pass `b2b: true` implied. The API returns a `b2c_not_supported` error for consumer buyers.
+   * Requires a Business plan.
+   */
+  decide(input: DecideRequest, options?: { request_options?: RequestOptions }): Promise<DecideResponse> {
+    return decideFn(this, input, options?.request_options);
   }
 
-  health(): Promise<HealthResponse> {
-    return healthFn(this);
+  health(options?: { request_options?: RequestOptions }): Promise<HealthResponse> {
+    return healthFn(this, options?.request_options);
   }
 
   get rates() {
     const self = this;
     return {
-      list(): Promise<RatesListResponse> {
-        return RatesMethods.list(self);
+      list(options?: { request_options?: RequestOptions }): Promise<RatesListResponse> {
+        return RatesMethods.list(self, options?.request_options);
       },
-      get(country: string): Promise<RatesSingleResponse> {
-        return RatesMethods.get(self, country);
+      get(country: string, options?: { request_options?: RequestOptions }): Promise<RatesSingleResponse> {
+        return RatesMethods.get(self, country, options?.request_options);
       },
     };
   }
