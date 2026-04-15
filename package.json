@@ -39,9 +39,18 @@
       }
     }
   },
-  "files": ["dist", "README.md", "LICENSE", "CHANGELOG.md"],
-  "engines": { "node": ">=18" },
-  "publishConfig": { "access": "public" },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -51,9 +60,12 @@
     "test:types": "tsd",
     "sync-openapi": "tsx scripts/sync-openapi.ts",
     "gen-types": "openapi-typescript openapi.json -o src/generated/types.ts",
+    "test:edge": "vitest run --config vitest.edge.config.ts",
+    "test:node-runtime": "vitest run --config vitest.runtime-node.config.ts",
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^2.1.0",
     "msw": "^2.4.0",
@@ -69,7 +81,9 @@
     "url": "git+https://github.com/vatverify/node.git"
   },
   "homepage": "https://vatverify.dev",
-  "bugs": { "url": "https://github.com/vatverify/node/issues" },
+  "bugs": {
+    "url": "https://github.com/vatverify/node/issues"
+  },
   "license": "MIT",
   "author": "Miguel Guelbenzu",
   "tsd": {
