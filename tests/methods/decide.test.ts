@@ -21,6 +21,7 @@ describe('client.decide', () => {
         legal_basis: 'Article 196',
         explanation: 'x',
         invoice_note: 'y',
+        disclaimer: 'This is guidance, not legal advice. Confirm with a qualified tax adviser for your specific situation.',
         buyer_vat: { valid: true, country: { code: 'FR', name: 'France' }, company: null },
         validated_at: '2026-04-15T10:00:00Z',
       },

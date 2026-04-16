@@ -306,6 +306,7 @@
                   "country_unsupported",
                   "country_unknown",
                   "batch_too_large",
+                  "webhook_limit_reached",
                   "seller_country_unsupported",
                   "b2c_not_supported",
                   "buyer_vat_not_registered",
@@ -375,6 +376,11 @@
             "description": "Text to print on the invoice when the mechanism requires it (e.g. reverse-charge notice). Empty string when no note is needed.",
             "example": "Reverse charge — VAT to be accounted for by the recipient"
           },
+          "disclaimer": {
+            "type": "string",
+            "description": "Standard disclaimer. This endpoint applies deterministic tax rules — always confirm with a qualified tax adviser for your specific situation.",
+            "example": "This is guidance, not legal advice. Confirm with a qualified tax adviser for your specific situation."
+          },
           "buyer_vat": {
             "type": "object",
             "properties": {
@@ -422,6 +428,7 @@
           "legal_basis",
           "explanation",
           "invoice_note",
+          "disclaimer",
           "decided_at"
         ]
       },
@@ -845,6 +852,168 @@
         "required": [
           "vat_numbers"
         ]
+      },
+      "AuditResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid",
+                "example": "019d917e-4fa4-766e-9e0f-d977b47bf2c6"
+              },
+              "endpoint": {
+                "type": "string",
+                "enum": [
+                  "validate",
+                  "decide",
+                  "validate_batch"
+                ],
+                "example": "validate"
+              },
+              "response": {
+                "type": "object",
+                "additionalProperties": {},
+                "description": "The full original success response envelope."
+              },
+              "created_at": {
+                "type": "string",
+                "example": "2026-04-15T14:11:49.110Z"
+              },
+              "expires_at": {
+                "type": "string",
+                "example": "2026-07-14T14:11:49.110Z"
+              }
+            },
+            "required": [
+              "request_id",
+              "endpoint",
+              "response",
+              "created_at",
+              "expires_at"
+            ]
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "latency_ms": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "request_id",
+              "latency_ms"
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "WebhookResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "019d917e-4fa4-766e-9e0f-d977b47bf2c6"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://example.com/webhooks/vatverify"
+          },
+          "secret": {
+            "type": "string",
+            "description": "Shown once — store it securely.",
+            "example": "whsec_a1b2c3d4e5f6..."
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-04-15T10:00:00Z"
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "secret",
+          "created_at"
+        ]
+      },
+      "WebhookCreateBody": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://example.com/webhooks/vatverify"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "WebhookPublic": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "019d917e-4fa4-766e-9e0f-d977b47bf2c6"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://example.com/webhooks/vatverify"
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-04-15T10:00:00Z"
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "created_at"
+        ]
+      },
+      "WebhookListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookPublic"
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "WebhookTestResponse": {
+        "type": "object",
+        "properties": {
+          "delivered": {
+            "type": "boolean",
+            "example": true
+          },
+          "status": {
+            "type": "integer",
+            "example": 200
+          }
+        },
+        "required": [
+          "delivered",
+          "status"
+        ]
       }
     },
     "parameters": {}
@@ -1243,6 +1412,318 @@
           },
           "429": {
             "description": "Monthly quota insufficient for batch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/audits/{request_id}": {
+      "get": {
+        "tags": [
+          "Audit"
+        ],
+        "operationId": "getAuditLog",
+        "summary": "Retrieve a past response by request_id",
+        "description": "Returns the full response envelope for a previous validate, decide, or batch call. Records are retained for 7 days (Starter), 30 days (Pro), or 90 days (Business). Free plan keys always return 404.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The `meta.request_id` value from the original API response.",
+              "example": "019d917e-4fa4-766e-9e0f-d977b47bf2c6"
+            },
+            "required": true,
+            "name": "request_id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit record found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Record not found, expired, or belongs to a different key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhooks": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "operationId": "createWebhook",
+        "summary": "Register a webhook endpoint",
+        "description": "Registers an HTTPS URL to receive signed webhook events. The `secret` is returned once — store it securely. Requires Pro or Business plan.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookCreateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Webhook endpoint registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid URL or webhook limit reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Plan does not include webhooks — Pro or Business required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Webhooks"
+        ],
+        "operationId": "listWebhooks",
+        "summary": "List registered webhook endpoints",
+        "description": "Returns all webhook endpoints for the authenticated key. Secrets are never returned.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of registered endpoints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Plan does not include webhooks — Pro or Business required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhooks/{id}": {
+      "delete": {
+        "tags": [
+          "Webhooks"
+        ],
+        "operationId": "deleteWebhook",
+        "summary": "Delete a webhook endpoint",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "019d917e-4fa4-766e-9e0f-d977b47bf2c6"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Endpoint deleted"
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Plan does not include webhooks — Pro or Business required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Endpoint not found or belongs to a different key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhooks/{id}/test": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "operationId": "testWebhook",
+        "summary": "Fire a test event to a registered endpoint",
+        "description": "Delivers a `test` event directly (bypasses QStash) so you can verify your endpoint is reachable.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "019d917e-4fa4-766e-9e0f-d977b47bf2c6"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Test event delivered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookTestResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Plan does not include webhooks — Pro or Business required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Endpoint not found or belongs to a different key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Your endpoint did not respond with a 2xx status",
             "content": {
               "application/json": {
                 "schema": {

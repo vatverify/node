@@ -132,6 +132,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/audits/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve a past response by request_id
+         * @description Returns the full response envelope for a previous validate, decide, or batch call. Records are retained for 7 days (Starter), 30 days (Pro), or 90 days (Business). Free plan keys always return 404.
+         */
+        get: operations["getAuditLog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List registered webhook endpoints
+         * @description Returns all webhook endpoints for the authenticated key. Secrets are never returned.
+         */
+        get: operations["listWebhooks"];
+        put?: never;
+        /**
+         * Register a webhook endpoint
+         * @description Registers an HTTPS URL to receive signed webhook events. The `secret` is returned once — store it securely. Requires Pro or Business plan.
+         */
+        post: operations["createWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhooks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a webhook endpoint */
+        delete: operations["deleteWebhook"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhooks/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fire a test event to a registered endpoint
+         * @description Delivers a `test` event directly (bypasses QStash) so you can verify your endpoint is reachable.
+         */
+        post: operations["testWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -295,7 +376,7 @@ export interface components {
                  * @example invalid_format
                  * @enum {string}
                  */
-                code: "unauthorized" | "plan_required" | "invalid_format" | "country_unsupported" | "country_unknown" | "batch_too_large" | "seller_country_unsupported" | "b2c_not_supported" | "buyer_vat_not_registered" | "not_found" | "rate_limited" | "registry_unavailable";
+                code: "unauthorized" | "plan_required" | "invalid_format" | "country_unsupported" | "country_unknown" | "batch_too_large" | "webhook_limit_reached" | "seller_country_unsupported" | "b2c_not_supported" | "buyer_vat_not_registered" | "not_found" | "rate_limited" | "registry_unavailable";
                 message: string;
             };
             meta: components["schemas"]["ErrorMeta"];
@@ -332,6 +413,11 @@ export interface components {
              * @example Reverse charge — VAT to be accounted for by the recipient
              */
             invoice_note: string;
+            /**
+             * @description Standard disclaimer. This endpoint applies deterministic tax rules — always confirm with a qualified tax adviser for your specific situation.
+             * @example This is guidance, not legal advice. Confirm with a qualified tax adviser for your specific situation.
+             */
+            disclaimer: string;
             /** @description Summary of the buyer VAT validation performed as part of the decide call. */
             buyer_vat?: {
                 /**
@@ -562,6 +648,82 @@ export interface components {
              * @example DE100000001
              */
             requester_vat_number?: string;
+        };
+        AuditResponse: {
+            data: {
+                /**
+                 * Format: uuid
+                 * @example 019d917e-4fa4-766e-9e0f-d977b47bf2c6
+                 */
+                request_id: string;
+                /**
+                 * @example validate
+                 * @enum {string}
+                 */
+                endpoint: "validate" | "decide" | "validate_batch";
+                /** @description The full original success response envelope. */
+                response: {
+                    [key: string]: unknown;
+                };
+                /** @example 2026-04-15T14:11:49.110Z */
+                created_at: string;
+                /** @example 2026-07-14T14:11:49.110Z */
+                expires_at: string;
+            };
+            meta: {
+                /** Format: uuid */
+                request_id: string;
+                latency_ms: number;
+            };
+        };
+        WebhookResponse: {
+            /**
+             * Format: uuid
+             * @example 019d917e-4fa4-766e-9e0f-d977b47bf2c6
+             */
+            id: string;
+            /**
+             * Format: uri
+             * @example https://example.com/webhooks/vatverify
+             */
+            url: string;
+            /**
+             * @description Shown once — store it securely.
+             * @example whsec_a1b2c3d4e5f6...
+             */
+            secret: string;
+            /** @example 2026-04-15T10:00:00Z */
+            created_at: string;
+        };
+        WebhookCreateBody: {
+            /**
+             * Format: uri
+             * @example https://example.com/webhooks/vatverify
+             */
+            url: string;
+        };
+        WebhookPublic: {
+            /**
+             * Format: uuid
+             * @example 019d917e-4fa4-766e-9e0f-d977b47bf2c6
+             */
+            id: string;
+            /**
+             * Format: uri
+             * @example https://example.com/webhooks/vatverify
+             */
+            url: string;
+            /** @example 2026-04-15T10:00:00Z */
+            created_at: string;
+        };
+        WebhookListResponse: {
+            data: components["schemas"]["WebhookPublic"][];
+        };
+        WebhookTestResponse: {
+            /** @example true */
+            delivered: boolean;
+            /** @example 200 */
+            status: number;
         };
     };
     responses: never;
@@ -873,6 +1035,240 @@ export interface operations {
             };
             /** @description Monthly quota insufficient for batch */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getAuditLog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit record found */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditResponse"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Record not found, expired, or belongs to a different key */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listWebhooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of registered endpoints */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookListResponse"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Plan does not include webhooks — Pro or Business required */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookCreateBody"];
+            };
+        };
+        responses: {
+            /** @description Webhook endpoint registered */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookResponse"];
+                };
+            };
+            /** @description Invalid URL or webhook limit reached */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Plan does not include webhooks — Pro or Business required */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Endpoint deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Plan does not include webhooks — Pro or Business required */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Endpoint not found or belongs to a different key */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    testWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Test event delivered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookTestResponse"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Plan does not include webhooks — Pro or Business required */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Endpoint not found or belongs to a different key */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Your endpoint did not respond with a 2xx status */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
