@@ -204,7 +204,7 @@ export interface paths {
         put?: never;
         /**
          * Fire a test event to a registered endpoint
-         * @description Delivers a `test` event directly (bypasses QStash) so you can verify your endpoint is reachable.
+         * @description Delivers a `test` event directly (bypasses the delivery queue) so you can verify your endpoint is reachable.
          */
         post: operations["testWebhook"];
         delete?: never;
