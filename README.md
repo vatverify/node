@@ -53,7 +53,7 @@ for (const item of data.results) {
 
 ### `client.decide(input)`
 
-Tax-rules engine. Answers "should I charge VAT?" with legal basis and invoice note. Included on every plan (Free gets 25 calls/month).
+Tax-rules engine. Answers "should I charge VAT?" with legal basis and invoice note. Requires **Business** plan.
 
 ```ts
 const { data } = await client.decide({
