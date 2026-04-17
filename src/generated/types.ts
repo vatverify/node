@@ -59,7 +59,7 @@ export interface paths {
         put?: never;
         /**
          * Decide whether to charge VAT
-         * @description Given a seller country, buyer VAT or country, and b2b flag, returns whether to charge VAT, at what rate, under which mechanism, with legal basis and invoice note. Included on every plan with its own monthly budget (Free: 25, Starter: 500, Pro: 4,000, Business: 20,000).
+         * @description Given seller and buyer VAT numbers, returns whether to charge VAT, at what rate, under which mechanism, with legal basis and invoice note. Requires a Business-plan API key. Shares the monthly quota pool with /v1/validate.
          */
         post: operations["decideTax"];
         delete?: never;
@@ -863,7 +863,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description Plan /decide budget exhausted for the month */
+            /** @description Requires Business plan */
             402: {
                 headers: {
                     [name: string]: unknown;
