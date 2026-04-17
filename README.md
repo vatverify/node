@@ -20,7 +20,7 @@ console.log(data.valid, data.company?.name);
 console.log('latency:', meta.latency_ms, 'ms');
 ```
 
-Get an API key at [vatverify.dev](https://vatverify.dev). Free tier: 500 validations + 25 `/decide` calls / month, no credit card.
+Get an API key at [vatverify.dev](https://vatverify.dev). Free tier: 500 live validations / month plus unlimited test-mode calls, no credit card.
 
 ## Methods
 
@@ -53,7 +53,7 @@ for (const item of data.results) {
 
 ### `client.decide(input)`
 
-Tax-rules engine. Answers "should I charge VAT?" with legal basis and invoice note. Requires **Business** plan.
+Tax-rules engine. Answers "should I charge VAT?" with legal basis and invoice note. Requires **Business** plan. Shares the monthly quota pool with `/v1/validate`.
 
 ```ts
 const { data } = await client.decide({
