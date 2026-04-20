@@ -440,9 +440,65 @@ export interface components {
              */
             decided_at: string;
         };
+        DecideSourceEntry: {
+            /**
+             * @description Whether this entry describes the seller or buyer VAT lookup.
+             * @example buyer
+             * @enum {string}
+             */
+            role: "seller" | "buyer";
+            /**
+             * @description Which registry was used for this lookup.
+             * @example vies
+             * @enum {string}
+             */
+            source: "vies" | "hmrc" | "bfs" | "brreg";
+            /**
+             * @description Upstream data source reliability. `live` = confirmed fresh registry response. `cached` = served from the 30-day cache. `degraded` = result may be unreliable (reserved for future expansion).
+             * @example live
+             * @enum {string}
+             */
+            source_status: "live" | "cached" | "degraded";
+            /**
+             * @description Whether this result was served from cache.
+             * @example false
+             */
+            cached: boolean;
+            /**
+             * Format: date-time
+             * @description ISO 8601 timestamp of when the value was originally fetched and cached. Null for live results.
+             * @example null
+             */
+            cached_at: string | null;
+            /**
+             * @description Age of the cached value in seconds. Null for live results.
+             * @example null
+             */
+            stale_seconds: number | null;
+        };
+        DecideMeta: {
+            /**
+             * @description UUID v7 identifying this specific HTTP request.
+             * @example 0190f8ea-a5b2-7000-a123-000000000000
+             */
+            request_id: string;
+            /**
+             * @description Total server-side processing time in milliseconds.
+             * @example 820
+             */
+            latency_ms: number;
+            /**
+             * @description Rolled-up worst-case source status across all lookups (seller + buyer).
+             * @example live
+             * @enum {string}
+             */
+            source_status: "live" | "cached" | "degraded";
+            /** @description Per-VAT source details for the seller and buyer lookups. */
+            sources: components["schemas"]["DecideSourceEntry"][];
+        };
         DecideResponse: {
             data: components["schemas"]["DecideData"];
-            meta: components["schemas"]["Meta"];
+            meta: components["schemas"]["DecideMeta"];
         };
         DecideRequest: {
             /**
@@ -1260,15 +1316,6 @@ export interface operations {
             };
             /** @description Endpoint not found or belongs to a different key */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Your endpoint did not respond with a 2xx status */
-            502: {
                 headers: {
                     [name: string]: unknown;
                 };

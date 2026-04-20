@@ -432,6 +432,111 @@
           "decided_at"
         ]
       },
+      "DecideSourceEntry": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "seller",
+              "buyer"
+            ],
+            "description": "Whether this entry describes the seller or buyer VAT lookup.",
+            "example": "buyer"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "vies",
+              "hmrc",
+              "bfs",
+              "brreg"
+            ],
+            "description": "Which registry was used for this lookup.",
+            "example": "vies"
+          },
+          "source_status": {
+            "type": "string",
+            "enum": [
+              "live",
+              "cached",
+              "degraded"
+            ],
+            "description": "Upstream data source reliability. `live` = confirmed fresh registry response. `cached` = served from the 30-day cache. `degraded` = result may be unreliable (reserved for future expansion).",
+            "example": "live"
+          },
+          "cached": {
+            "type": "boolean",
+            "description": "Whether this result was served from cache.",
+            "example": false
+          },
+          "cached_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of when the value was originally fetched and cached. Null for live results.",
+            "example": null
+          },
+          "stale_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Age of the cached value in seconds. Null for live results.",
+            "example": null
+          }
+        },
+        "required": [
+          "role",
+          "source",
+          "source_status",
+          "cached",
+          "cached_at",
+          "stale_seconds"
+        ]
+      },
+      "DecideMeta": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "description": "UUID v7 identifying this specific HTTP request.",
+            "example": "0190f8ea-a5b2-7000-a123-000000000000"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total server-side processing time in milliseconds.",
+            "example": 820
+          },
+          "source_status": {
+            "type": "string",
+            "enum": [
+              "live",
+              "cached",
+              "degraded"
+            ],
+            "description": "Rolled-up worst-case source status across all lookups (seller + buyer).",
+            "example": "live"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecideSourceEntry"
+            },
+            "description": "Per-VAT source details for the seller and buyer lookups."
+          }
+        },
+        "required": [
+          "request_id",
+          "latency_ms",
+          "source_status",
+          "sources"
+        ]
+      },
       "DecideResponse": {
         "type": "object",
         "properties": {
@@ -439,7 +544,7 @@
             "$ref": "#/components/schemas/DecideData"
           },
           "meta": {
-            "$ref": "#/components/schemas/Meta"
+            "$ref": "#/components/schemas/DecideMeta"
           }
         },
         "required": [
@@ -1714,16 +1819,6 @@
           },
           "404": {
             "description": "Endpoint not found or belongs to a different key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Your endpoint did not respond with a 2xx status",
             "content": {
               "application/json": {
                 "schema": {
