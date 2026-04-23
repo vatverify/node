@@ -106,6 +106,20 @@ await client.decide({ seller_vat: 'DE123456789', buyer_country: 'US' });
 
 `mechanism` is one of `'standard'`, `'reverse_charge'`, `'zero_rated'`, `'out_of_scope'`. Both VATs are validated against their live registries in the same call, so you get validation + decision for one quota unit, pooled with `/validate`.
 
+## Audit log
+
+Every `/validate`, `/validate_batch`, and `/decide` response is persisted by `request_id`. Retrieve the exact response envelope later for tax-audit evidence or dispute resolution.
+
+```ts
+const { data } = await client.audits.get('req_01HQZX...');
+data.endpoint;   // 'validate' | 'decide' | 'validate_batch'
+data.response;   // original response body
+data.created_at; // ISO timestamp
+data.expires_at; // retention cutoff
+```
+
+Retention: 7 days (Starter), 30 days (Pro), 90 days (Business). Free plan keys return 404. Full docs: [vatverify.dev/docs/api/audit/get-audit-log](https://vatverify.dev/docs/api/audit/get-audit-log).
+
 ## Rates
 
 ```ts
