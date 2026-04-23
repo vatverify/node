@@ -111,7 +111,7 @@ await client.decide({ seller_vat: 'DE123456789', buyer_country: 'US' });
 Every `/validate`, `/validate_batch`, and `/decide` response is persisted by `request_id`. Retrieve the exact response envelope later for tax-audit evidence or dispute resolution.
 
 ```ts
-const { data } = await client.audits.get('req_01HQZX...');
+const { data } = await client.audits.get('019dbc5f-6191-77f6-b3c1-ed4ba503bc44');
 data.endpoint;   // 'validate' | 'decide' | 'validate_batch'
 data.response;   // original response body
 data.created_at; // ISO timestamp
