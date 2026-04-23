@@ -21,14 +21,17 @@ npm install @vatverify/node
 
 ## Supported registries
 
-| Country | Registry | Transport | Source status |
-|---|---|---|---|
-| EU-27 | VIES | SOAP | Live at [vatverify.dev/status](https://vatverify.dev/status) |
-| UK | HMRC | REST | Live |
-| CH / LI | BFS (Swiss UID) | SOAP | Live |
-| NO | Brønnøysundregistrene | REST | Live |
+| Country | Registry | Transport |
+|---|---|---|
+| EU-27 | VIES | SOAP |
+| XI (Northern Ireland) | VIES | SOAP |
+| UK (GB) | HMRC | REST |
+| CH / LI | BFS (Swiss UID) | SOAP |
+| NO | Brønnøysundregistrene | REST |
 
 Live rolling 30-day uptime and p50/p95 latency per registry: [vatverify.dev/status](https://vatverify.dev/status). All numbers come from the public `GET /v1/status.json` endpoint — no made-up SLAs.
+
+Northern Ireland VATs use the `XI` prefix under the Brexit protocol; they validate through VIES like any EU member. `GB` numbers route to HMRC.
 
 ## Quick start
 
@@ -96,12 +99,12 @@ await client.decide({ seller_vat: 'DE123456789', buyer_vat: 'DE811569869' });
 ```
 
 ```ts
-// DE seller → non-EU buyer (no buyer VAT): out of scope
+// DE seller → non-EU buyer: out of scope
 await client.decide({ seller_vat: 'DE123456789', buyer_country: 'US' });
 // → { mechanism: 'out_of_scope', invoice_note: '...' }
 ```
 
-Both VATs are validated against their live registries in the same call — you get validation + decision for one quota unit.
+`mechanism` is one of `'standard'`, `'reverse_charge'`, `'zero_rated'`, `'out_of_scope'`. Both VATs are validated against their live registries in the same call — you get validation + decision for one quota unit, pooled with `/validate`.
 
 ## Rates
 
@@ -139,18 +142,20 @@ await client.validate(input, {
 
 ## Test mode
 
-Test keys (`vtv_test_...`) let you exercise the full API without consuming quota or touching registries. Use reserved magic VAT numbers for deterministic responses:
+Test keys (`vtv_test_...`) exercise the full API deterministically without consuming quota or hitting registries:
 
 ```ts
 const client = new Vatverify('vtv_test_...');
 
-await client.validate({ vat_number: 'DE000000001' }); // always valid
-await client.validate({ vat_number: 'DE000000002' }); // always invalid
-await client.validate({ vat_number: 'DE000000429' }); // always rate-limited
-await client.validate({ vat_number: 'DE000000503' }); // always returns degraded
+await client.validate({ vat_number: 'IE6388047V' });    // valid — Apple Distribution International Ltd
+await client.validate({ vat_number: 'DE811569869' });   // valid — Zalando SE
+await client.validate({ vat_number: 'FR44732829320' }); // valid — BlaBlaCar SAS
+await client.validate({ vat_number: 'IE0000000X' });    // invalid, no company data
+await client.validate({ vat_number: 'DE999999999' });   // 502 registry_unavailable
+// any other well-formed VAT → valid, synthesized "Magic Corp (XX)"
 ```
 
-Full list at [vatverify.dev/docs/testing](https://vatverify.dev/docs/testing). Test-mode calls are unlimited on every plan including free.
+Full fixture list at [vatverify.dev/docs/test-mode](https://vatverify.dev/docs/test-mode). Test-mode calls are unlimited on every plan including free.
 
 ## Configuration
 
@@ -169,7 +174,7 @@ const client = new Vatverify({
 const client = new Vatverify();
 ```
 
-Advanced options (`max_retries`, `fetch`, `user_agent_extra`, `on_response` hook) are documented at [vatverify.dev/docs/sdk-node](https://vatverify.dev/docs/sdk-node).
+Advanced options (`max_retries`, `fetch`, `user_agent_extra`, `on_response` hook) are documented at [vatverify.dev/docs/sdks/node](https://vatverify.dev/docs/sdks/node).
 
 ## Error handling
 
