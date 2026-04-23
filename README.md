@@ -1,8 +1,8 @@
 # @vatverify/node
 
-Official Node.js client for the [vatverify](https://vatverify.dev) API.
+Official TypeScript + Node.js SDK for the [vatverify](https://vatverify.dev) VAT validation API.
 
-Validate VAT numbers, fetch VAT rates, and run tax-rules decisions across the EU-27, UK, Switzerland, Liechtenstein, Norway, and more — all with a single typed client. Works in Node.js 18+, Bun, Deno, Vercel Edge, and Cloudflare Workers.
+Validate VAT numbers against **VIES (EU-27), HMRC (UK), and Swiss UID (CH/LI)** from a single typed client. Freshness-aware responses (`live` / `cached` / `degraded`), VAT rates, and a `/decide` tax-rules engine for reverse-charge decisions. Runs on Node.js 18+, Bun, Deno, Vercel Edge, and Cloudflare Workers.
 
 ```bash
 npm install @vatverify/node
