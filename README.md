@@ -1,12 +1,34 @@
 # @vatverify/node
 
-Official TypeScript + Node.js SDK for the [vatverify](https://vatverify.dev) VAT validation API.
+[![npm](https://img.shields.io/npm/v/@vatverify/node.svg)](https://www.npmjs.com/package/@vatverify/node)
+[![types](https://img.shields.io/npm/types/@vatverify/node.svg)](https://www.npmjs.com/package/@vatverify/node)
+[![license](https://img.shields.io/npm/l/@vatverify/node.svg)](./LICENSE)
+[![downloads](https://img.shields.io/npm/dm/@vatverify/node.svg)](https://www.npmjs.com/package/@vatverify/node)
 
-Validate VAT numbers against **VIES (EU-27), HMRC (UK), and Swiss UID (CH/LI)** from a single typed client. Freshness-aware responses (`live` / `cached` / `degraded`), VAT rates, and a `/decide` tax-rules engine for reverse-charge decisions. Runs on Node.js 18+, Bun, Deno, Vercel Edge, and Cloudflare Workers.
+Official TypeScript + Node.js SDK for the [vatverify](https://vatverify.dev) VAT validation API. VIES goes down on Tuesdays, HMRC rate-limits, the Swiss UID register speaks SOAP — one typed client handles all three.
+
+- 🇪🇺 **EU-27** via VIES
+- 🇬🇧 **UK** via HMRC
+- 🇨🇭 **Switzerland / Liechtenstein** via BFS (UID register)
+- 🇳🇴 **Norway** via Brønnøysundregistrene
+- Freshness-aware responses (`live` / `cached` / `degraded`) so a registry outage never 502s your checkout
+- `/decide` tax-rules engine for reverse-charge invoice decisions
+- Runs on Node.js 18+, Bun, Deno, Vercel Edge, and Cloudflare Workers — zero runtime dependencies
 
 ```bash
 npm install @vatverify/node
 ```
+
+## Supported registries
+
+| Country | Registry | Transport | Source status |
+|---|---|---|---|
+| EU-27 | VIES | SOAP | Live at [vatverify.dev/status](https://vatverify.dev/status) |
+| UK | HMRC | REST | Live |
+| CH / LI | BFS (Swiss UID) | SOAP | Live |
+| NO | Brønnøysundregistrene | REST | Live |
+
+Live rolling 30-day uptime and p50/p95 latency per registry: [vatverify.dev/status](https://vatverify.dev/status). All numbers come from the public `GET /v1/status.json` endpoint — no made-up SLAs.
 
 ## Quick start
 
@@ -18,11 +40,12 @@ const client = new Vatverify('vtv_live_...');
 const { data, meta } = await client.validate({ vat_number: 'IE6388047V' });
 console.log(data.valid, data.company?.name);
 console.log('latency:', meta.latency_ms, 'ms');
+console.log('freshness:', meta.source_status); // 'live' | 'cached' | 'degraded'
 ```
 
 Get an API key at [vatverify.dev](https://vatverify.dev). Free tier: 500 live validations / month plus unlimited test-mode calls, no credit card.
 
-## Methods
+## Validation
 
 ### `client.validate(input)`
 
@@ -32,7 +55,7 @@ Validate a single VAT number. Available on every plan.
 const { data, meta } = await client.validate({
   vat_number: 'IE6388047V',
   cache: false,                           // optional: bypass the 30-day cache
-  requester_vat_number: 'DE100000001',    // optional: for audit trail (verify_id)
+  requester_vat_number: 'DE100000001',    // optional: consultation number / audit trail
 });
 ```
 
@@ -51,22 +74,36 @@ for (const item of data.results) {
 }
 ```
 
-### `client.decide(input)`
+## Tax decisions — `/decide`
 
-Tax-rules engine. Answers "should I charge VAT?" with legal basis and invoice note. Requires **Business** plan. Shares the monthly quota pool with `/v1/validate`.
+The differentiator. Answers "should I charge VAT on this invoice, or is it reverse-charge / out-of-scope?" and returns the legal basis plus the exact `invoice_note` string to print on the invoice. Requires **Business** plan.
 
 ```ts
+// DE seller → FR B2B buyer: intra-EU reverse charge
 const { data } = await client.decide({
   seller_vat: 'DE123456789',
   buyer_vat: 'FR44732829320',
 });
-console.log(data.mechanism);        // 'reverse_charge' | 'standard'
-console.log(data.invoice_note);     // "Reverse charge — VAT to be accounted for..."
+data.mechanism;    // 'reverse_charge'
+data.invoice_note; // 'Reverse charge — VAT to be accounted for by the recipient (Art. 196 VAT Directive).'
+data.legal_basis;  // 'EU Directive 2006/112/EC, Art. 196'
 ```
 
-### `client.rates.list()` · `client.rates.get(country)`
+```ts
+// DE seller → DE B2B buyer: domestic, standard VAT
+await client.decide({ seller_vat: 'DE123456789', buyer_vat: 'DE811569869' });
+// → { mechanism: 'standard', rate: 19, ... }
+```
 
-Fetch VAT rates. Public, no auth required — but calling them through the client is more ergonomic (typed responses).
+```ts
+// DE seller → non-EU buyer (no buyer VAT): out of scope
+await client.decide({ seller_vat: 'DE123456789', buyer_country: 'US' });
+// → { mechanism: 'out_of_scope', invoice_note: '...' }
+```
+
+Both VATs are validated against their live registries in the same call — you get validation + decision for one quota unit.
+
+## Rates
 
 ```ts
 const { data } = await client.rates.list();
@@ -76,57 +113,80 @@ const { data: de } = await client.rates.get('de');
 console.log(de.standard_rate, de.currency);  // 19 EUR
 ```
 
-### `client.health()`
+Rates endpoints are public, no auth required. For fully offline rates + format/checksum validation (no API call at all), use [`@vatverify/vat-rates`](https://www.npmjs.com/package/@vatverify/vat-rates) instead.
 
-Liveness probe. Returns `{ ok: true }` when the API is up.
+## Reliability
+
+Every registry fails in its own way. The SDK and API surface what's happening so your code can respond:
+
+- **`meta.source_status: 'live'`** — fresh response from the registry.
+- **`meta.source_status: 'cached'`** — served from the 30-day cache (within freshness window).
+- **`meta.source_status: 'degraded'`** — the registry failed live; response served from the fallback cache window. The VAT is still validated, but treat the answer as "last known good" rather than real-time.
+
+This means a VIES outage doesn't break your checkout — the request returns a `degraded` response instead of a 502. The public status page ([vatverify.dev/status](https://vatverify.dev/status)) shows the live state of every registry.
+
+### Retries
+
+The SDK retries on network errors, timeouts, `429`, `502`, `503`, and `504` — up to 2 retries (3 total attempts), exponential backoff with jitter, capped at 2s. `Retry-After` on `429` takes precedence (capped at 30s). Retries never fire on `400`, `401`, `402`, `404` — those are caller errors.
 
 ```ts
-const { ok } = await client.health();
+// disable retries globally or per request
+const client = new Vatverify({ api_key: '...', max_retries: 0 });
+await client.validate(input, {
+  request_options: { max_retries: 0, timeout: 5000, signal: controller.signal },
+});
 ```
+
+## Test mode
+
+Test keys (`vtv_test_...`) let you exercise the full API without consuming quota or touching registries. Use reserved magic VAT numbers for deterministic responses:
+
+```ts
+const client = new Vatverify('vtv_test_...');
+
+await client.validate({ vat_number: 'DE000000001' }); // always valid
+await client.validate({ vat_number: 'DE000000002' }); // always invalid
+await client.validate({ vat_number: 'DE000000429' }); // always rate-limited
+await client.validate({ vat_number: 'DE000000503' }); // always returns degraded
+```
+
+Full list at [vatverify.dev/docs/testing](https://vatverify.dev/docs/testing). Test-mode calls are unlimited on every plan including free.
 
 ## Configuration
 
 ```ts
-// Option 1: string shorthand (common case)
+// string shorthand (common case)
 const client = new Vatverify('vtv_live_...');
 
-// Option 2: full config object
+// or full config
 const client = new Vatverify({
   api_key: 'vtv_live_...',
-  base_url: 'https://api.vatverify.dev',   // default; override for staging
-  timeout: 30_000,                          // default: 30s per attempt
-  max_retries: 2,                           // default: 2 retries (3 attempts total)
-  fetch: globalThis.fetch,                  // override for custom transports
-  user_agent_extra: 'my-app/1.2.3',         // appended to default UA
-  on_response: (info) => log.info(info),    // hook for request/response logging
+  base_url: 'https://api.vatverify.dev', // default
+  timeout: 30_000,                        // default: 30s per attempt
 });
 
-// Option 3: environment variable
-// $ export VATVERIFY_API_KEY=vtv_live_...
+// or VATVERIFY_API_KEY env var
 const client = new Vatverify();
 ```
+
+Advanced options (`max_retries`, `fetch`, `user_agent_extra`, `on_response` hook) are documented at [vatverify.dev/docs/sdk-node](https://vatverify.dev/docs/sdk-node).
 
 ## Error handling
 
 ```ts
 import {
-  Vatverify,
   VatverifyError,
-  AuthError,
-  ValidationError,
-  NotFoundError,
-  PlanError,
-  RateLimitError,
-  RegistryError,
-  NetworkError,
-  TimeoutError,
+  AuthError, ValidationError, NotFoundError, PlanError,
+  RateLimitError, RegistryError, NetworkError, TimeoutError,
 } from '@vatverify/node';
 
 try {
-  const { data } = await client.validate({ vat_number: 'xxx' });
+  await client.validate({ vat_number: 'xxx' });
 } catch (e) {
   if (e instanceof RateLimitError) {
     console.log(`Retry after ${e.retry_after}s; remaining: ${e.rate_limit.remaining}`);
+  } else if (e instanceof RegistryError) {
+    console.log('Upstream registry failed; response was served degraded or unavailable');
   } else if (e instanceof AuthError) {
     console.log('Rotate the API key');
   } else if (e instanceof VatverifyError) {
@@ -135,30 +195,7 @@ try {
 }
 ```
 
-Every error has:
-- `code` — machine-readable identifier (e.g. `'invalid_format'`, `'rate_limited'`)
-- `status_code` — HTTP status, or `0` for network / timeout errors
-- `request_id` — UUID for support tickets
-- `response_body` — raw response for debugging
-- `attempt_count` — how many attempts were made before this error was thrown
-
-`RateLimitError` additionally carries `retry_after` (seconds) and `rate_limit: { limit, remaining, reset }`.
-
-## Retries
-
-By default the SDK retries on network errors, timeouts, `429`, `502`, `503`, and `504` — up to 2 retries (3 total attempts), with exponential backoff + jitter capped at 2 seconds. `Retry-After` on `429` takes precedence over backoff (capped at 30s).
-
-Retries don't fire on `400`, `401`, `402`, `404` — those are caller errors and retrying wouldn't help.
-
-```ts
-// disable retries
-const client = new Vatverify({ api_key: '...', max_retries: 0 });
-
-// or per request
-await client.validate(input, {
-  request_options: { max_retries: 0, timeout: 5000, signal: controller.signal },
-});
-```
+Every error exposes `code`, `status_code`, `request_id` (quote this in support tickets), `response_body`, and `attempt_count`. `RateLimitError` additionally carries `retry_after` and `rate_limit: { limit, remaining, reset }`.
 
 ## Runtime support
 
@@ -169,16 +206,16 @@ await client.validate(input, {
 | Deno | ✅ |
 | Vercel Edge | ✅ |
 | Cloudflare Workers | ✅ |
-| Browsers (direct API key) | ❌ (API keys must stay server-side) |
+| Browsers (direct API key) | ❌ — API keys must stay server-side |
 
-Zero runtime dependencies. Uses only `fetch`, `AbortController`, `URL`, `Headers` — standard Web APIs available in every modern runtime.
+Zero runtime dependencies. Uses only `fetch`, `AbortController`, `URL`, `Headers`.
 
 ## TypeScript
 
-Types ship with the package and are auto-generated from the production OpenAPI spec. Every method is fully typed:
+Types ship with the package and are auto-generated from the production OpenAPI spec. Every method is fully typed end-to-end:
 
 ```ts
-import type { ValidateResponse, CountryRate, BatchResultItem } from '@vatverify/node';
+import type { ValidateResponse, CountryRate, BatchResultItem, DecideResponse } from '@vatverify/node';
 ```
 
 ## License
@@ -188,5 +225,6 @@ MIT — see [LICENSE](./LICENSE).
 ## Links
 
 - Documentation: https://vatverify.dev/docs
+- Status: https://vatverify.dev/status
 - Issues: https://github.com/vatverify/node/issues
 - Changelog: [CHANGELOG.md](./CHANGELOG.md)
