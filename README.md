@@ -226,10 +226,3 @@ import type { ValidateResponse, CountryRate, BatchResultItem, DecideResponse } f
 ## License
 
 MIT. See [LICENSE](./LICENSE).
-
-## Links
-
-- Documentation: https://vatverify.dev/docs
-- Status: https://vatverify.dev/status
-- Issues: https://github.com/vatverify/node/issues
-- Changelog: [CHANGELOG.md](./CHANGELOG.md)
