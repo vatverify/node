@@ -28,6 +28,12 @@ export type {
   WebhookTestResponse,
   AuditRecord,
   AuditResponse,
+  MatchCode,
+  ConfirmRequest,
+  ConfirmResponse,
+  ConfirmRequestOptions,
+  ConfirmationRecord,
+  ConfirmationDetailResponse,
 } from './types.js';
 
 // Error classes (also importable from '@vatverify/node/errors')
@@ -42,5 +48,8 @@ export {
   NetworkError,
   TimeoutError,
   WebhookLimitError,
+  BzstSessionLimitError,
+  BzstUnavailableError,
+  BzstRejectedError,
 } from './errors.js';
 export type { ErrorCode, RateLimitInfo } from './errors.js';

@@ -84,6 +84,112 @@ export type AuditRecord = {
   expires_at: string;
 };
 
+/**
+ * BZSt field-match code, returned for each of the four qualified fields
+ * (name, street, postcode, town):
+ * - `A` = matches
+ * - `B` = does not match
+ * - `C` = not requested (the caller did not supply this field)
+ * - `D` = not provided by the foreign EU registry
+ */
+export type MatchCode = 'A' | 'B' | 'C' | 'D';
+
+/** Request body for POST /v1/confirm. */
+export type ConfirmRequest = {
+  /** Foreign EU VAT number to confirm (with country prefix). */
+  vat_number: string;
+  /** Company details to verify against the foreign registry. */
+  company: {
+    name: string;
+    street?: string;
+    postcode?: string;
+    town?: string;
+  };
+  /**
+   * German VAT number authorising the confirmation. Overrides the per-key
+   * default. Must pass DE MOD-11 checksum.
+   */
+  requester_vat_number?: string;
+};
+
+/** Response envelope for POST /v1/confirm. */
+export type ConfirmResponse = {
+  data: {
+    /** True for evatr-0000 (fully qualified) and evatr-0003 (VAT valid, partial match). */
+    valid: boolean;
+    /** True only when every requested field returned A. */
+    qualified: boolean;
+    vat_number: string;
+    requester_vat_number: string;
+    matches: {
+      name: MatchCode;
+      street: MatchCode;
+      postcode: MatchCode;
+      town: MatchCode;
+    };
+    company: {
+      name: string | null;
+      street: string | null;
+      postcode: string | null;
+      town: string | null;
+    };
+    valid_from: string | null;
+    valid_to: string | null;
+    /** Retrievable later via `vat.confirmations.get(id)`. */
+    confirmation_id: string;
+    confirmed_at: string;
+  };
+  meta: {
+    source: 'bzst';
+    source_status: 'live';
+    latency_ms: number;
+    request_id: string;
+    bzst_status_code: string;
+  };
+};
+
+/** A stored §18e confirmation record returned by GET /v1/confirmations/{id}. */
+export type ConfirmationRecord = {
+  id: string;
+  request_id: string;
+  requester_vat: string;
+  queried_vat: string;
+  bzst_status_code: string;
+  valid: boolean;
+  qualified: boolean;
+  matches: {
+    name: MatchCode | null;
+    street: MatchCode | null;
+    postcode: MatchCode | null;
+    town: MatchCode | null;
+  };
+  result: {
+    name: string | null;
+    street: string | null;
+    postcode: string | null;
+    town: string | null;
+  };
+  valid_from: string | null;
+  valid_to: string | null;
+  created_at: string;
+};
+
+/** Response envelope for GET /v1/confirmations/{id}. */
+export type ConfirmationDetailResponse = {
+  data: ConfirmationRecord;
+  meta: { request_id: string };
+};
+
+/** Options specific to `vat.confirm()`. */
+export type ConfirmRequestOptions = {
+  /**
+   * Client-supplied UUID. Retried POSTs with the same key within 24 hours
+   * return the originally stored confirmation instead of issuing a new one
+   * to BZSt. Safe for retry on network flakes.
+   */
+  idempotency_key?: string;
+};
+
 /** Response envelope for GET /v1/audits/{request_id}. */
 export type AuditResponse = {
   data: AuditRecord;

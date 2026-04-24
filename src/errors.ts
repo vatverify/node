@@ -2,6 +2,7 @@ export type ErrorCode =
   | 'unauthorized'
   | 'plan_required'
   | 'invalid_format'
+  | 'invalid_requester_vat'
   | 'country_unsupported'
   | 'country_unknown'
   | 'batch_too_large'
@@ -12,6 +13,9 @@ export type ErrorCode =
   | 'not_found'
   | 'rate_limited'
   | 'registry_unavailable'
+  | 'bzst_session_limit'
+  | 'bzst_unavailable'
+  | 'bzst_rejected'
   | 'network_error'
   | 'timeout'
   | 'unknown_error';
@@ -121,6 +125,41 @@ export class TimeoutError extends VatverifyError {
   }
 }
 
+/**
+ * Raised when BZSt enforces a session-level rate limit (evatr-0008).
+ * The session-scoping semantics are not documented; treat as a transient
+ * 429 and retry with backoff.
+ */
+export class BzstSessionLimitError extends VatverifyError {
+  constructor(message: string, init: VatverifyErrorInit) {
+    super(message, init);
+    this.name = 'BzstSessionLimitError';
+  }
+}
+
+/**
+ * Raised when the BZSt service is unavailable (evatr-0011) or the foreign
+ * EU member state can't be reached (evatr-0013).
+ */
+export class BzstUnavailableError extends VatverifyError {
+  constructor(message: string, init: VatverifyErrorInit) {
+    super(message, init);
+    this.name = 'BzstUnavailableError';
+  }
+}
+
+/**
+ * Raised for any other BZSt rejection that doesn't fit a more specific
+ * class (unknown evatr-XXXX, format issues surfaced by BZSt rather than
+ * our preflight checksum).
+ */
+export class BzstRejectedError extends VatverifyError {
+  constructor(message: string, init: VatverifyErrorInit) {
+    super(message, init);
+    this.name = 'BzstRejectedError';
+  }
+}
+
 /** Map HTTP status code to the matching error class. */
 export function errorClassForStatus(status: number): typeof VatverifyError {
   if (status === 400) return ValidationError;
@@ -177,6 +216,16 @@ export async function errorFromResponse(res: Response, attempt_count: number): P
 
   if (code === 'webhook_limit_reached') {
     return new WebhookLimitError(message, baseInit);
+  }
+
+  if (code === 'bzst_session_limit') {
+    return new BzstSessionLimitError(message, baseInit);
+  }
+  if (code === 'bzst_unavailable') {
+    return new BzstUnavailableError(message, baseInit);
+  }
+  if (code === 'bzst_rejected') {
+    return new BzstRejectedError(message, baseInit);
   }
 
   if (Cls === RateLimitError) {

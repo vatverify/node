@@ -6,6 +6,7 @@ import * as RatesMethods from './methods/rates.js';
 import { health as healthFn } from './methods/health.js';
 import * as WebhooksMethods from './methods/webhooks.js';
 import * as AuditsMethods from './methods/audits.js';
+import * as ConfirmMethods from './methods/confirm.js';
 import type {
   ValidateRequest, ValidateResponse,
   ValidateBatchRequest, ValidateBatchResponse,
@@ -14,6 +15,8 @@ import type {
   HealthResponse,
   WebhookEndpointWithSecret, WebhookListResponse, WebhookTestResponse,
   AuditResponse,
+  ConfirmRequest, ConfirmResponse, ConfirmRequestOptions,
+  ConfirmationDetailResponse,
 } from './types.js';
 
 const SDK_VERSION = '0.1.0';
@@ -44,6 +47,8 @@ interface InternalRequestInput {
   path: string;
   query?: Record<string, string | undefined>;
   body?: unknown;
+  /** Additional request headers (merged on top of defaults). */
+  headers?: Record<string, string>;
   request_options?: RequestOptions;
 }
 
@@ -110,8 +115,33 @@ export class Vatverify {
     return decideFn(this, input, options?.request_options);
   }
 
+  /**
+   * BZSt §18e qualified VAT confirmation — German legal evidence of a
+   * foreign EU VAT plus field-by-field match of the company details.
+   * Business plan only. Result stored for 10 years; retrieve later with
+   * `vat.confirmations.get(id)`.
+   *
+   * Supports an `idempotency_key` (UUID) for safe retry on network flakes.
+   */
+  confirm(
+    input: ConfirmRequest,
+    options?: ConfirmRequestOptions & { request_options?: RequestOptions },
+  ): Promise<ConfirmResponse> {
+    const { request_options, ...confirmOpts } = options ?? {};
+    return ConfirmMethods.confirm(this, input, confirmOpts, request_options);
+  }
+
   health(options?: { request_options?: RequestOptions }): Promise<HealthResponse> {
     return healthFn(this, options?.request_options);
+  }
+
+  get confirmations() {
+    const self = this;
+    return {
+      get(id: string, options?: { request_options?: RequestOptions }): Promise<ConfirmationDetailResponse> {
+        return ConfirmMethods.getConfirmation(self, id, options?.request_options);
+      },
+    };
   }
 
   get rates() {
@@ -160,6 +190,7 @@ export class Vatverify {
       Authorization: `Bearer ${this.api_key}`,
       'User-Agent': this.user_agent,
       Accept: 'application/json',
+      ...(input.headers ?? {}),
       ...(input.request_options?.headers ?? {}),
     };
     let body: string | undefined;
