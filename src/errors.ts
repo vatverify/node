@@ -15,6 +15,7 @@ export type ErrorCode =
   | 'registry_unavailable'
   | 'bzst_session_limit'
   | 'bzst_unavailable'
+  | 'bzst_server_error'
   | 'bzst_rejected'
   | 'network_error'
   | 'timeout'
@@ -221,7 +222,7 @@ export async function errorFromResponse(res: Response, attempt_count: number): P
   if (code === 'bzst_session_limit') {
     return new BzstSessionLimitError(message, baseInit);
   }
-  if (code === 'bzst_unavailable') {
+  if (code === 'bzst_unavailable' || code === 'bzst_server_error') {
     return new BzstUnavailableError(message, baseInit);
   }
   if (code === 'bzst_rejected') {
