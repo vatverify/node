@@ -13,7 +13,7 @@ Official TypeScript + Node.js SDK for the [vatverify](https://vatverify.dev) VAT
 - 🇳🇴 **Norway** via Brønnøysundregistrene
 - Freshness-aware responses (`live` / `cached` / `degraded`) so a registry outage never 502s your checkout
 - `/decide` tax-rules engine for reverse-charge invoice decisions
-- Runs on Node.js 18+, Bun, Deno, Vercel Edge, and Cloudflare Workers, with zero runtime dependencies
+- Runs on Node.js 22+, Bun, Deno, Vercel Edge, and Cloudflare Workers, with zero runtime dependencies
 
 ```bash
 npm install @vatverify/node
@@ -220,7 +220,7 @@ Every error exposes `code`, `status_code`, `request_id` (quote this in support t
 
 | Runtime | Supported |
 |---|---|
-| Node.js 18+ | ✅ |
+| Node.js 22+ | ✅ |
 | Bun | ✅ |
 | Deno | ✅ |
 | Vercel Edge | ✅ |
