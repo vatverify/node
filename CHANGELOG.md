@@ -2,6 +2,14 @@
 
 All notable changes to `@vatverify/node` are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] — 2026-04-26
+
+### Changed
+- **README**: added 🇩🇪 Germany / BZSt eVatR to the registry flag list with a `client.confirm()` clarifier (BZSt is the §18e qualified-confirmation path, not regular validation).
+
+### Security
+- Bumped transitive dev dependency `postcss` to 8.5.10 to close GHSA / CVE-2026-41305 (XSS via unescaped `</style>` in CSS stringify output). Dev-only (via `tsup` + `vitest`); the SDK runtime is unaffected.
+
 ## [0.2.0] — 2026-04-26
 
 ### Added
