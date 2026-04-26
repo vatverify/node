@@ -11,6 +11,7 @@ Official TypeScript + Node.js SDK for the [vatverify](https://vatverify.dev) VAT
 - 🇬🇧 **UK** via HMRC
 - 🇨🇭 **Switzerland / Liechtenstein** via BFS (UID register)
 - 🇳🇴 **Norway** via Brønnøysundregistrene
+- 🇩🇪 **Germany** via BZSt eVatR — §18e qualified confirmation (`client.confirm()`)
 - Freshness-aware responses (`live` / `cached` / `degraded`) so a registry outage never 502s your checkout
 - `/decide` tax-rules engine for reverse-charge invoice decisions
 - Runs on Node.js 22+, Bun, Deno, Vercel Edge, and Cloudflare Workers, with zero runtime dependencies
