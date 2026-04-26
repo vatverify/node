@@ -145,6 +145,12 @@ export type ConfirmResponse = {
     latency_ms: number;
     request_id: string;
     bzst_status_code: string;
+    /**
+     * BZSt's own request identifier from the qualified-confirmation response
+     * (the `id` field). Independent evidence of the upstream call alongside
+     * `request_id` and `data.confirmation_id`. Null when BZSt omits it.
+     */
+    bzst_id: string | null;
   };
 };
 
@@ -155,6 +161,8 @@ export type ConfirmationRecord = {
   requester_vat: string;
   queried_vat: string;
   bzst_status_code: string;
+  /** BZSt's own request identifier (the `id` field of the eVatR response). */
+  bzst_id: string | null;
   valid: boolean;
   qualified: boolean;
   matches: {

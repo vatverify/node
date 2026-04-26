@@ -28,6 +28,7 @@ npm install @vatverify/node
 | UK (GB) | HMRC | REST |
 | CH / LI | BFS (Swiss UID) | SOAP |
 | NO | Brønnøysundregistrene | REST |
+| DE (§18e qualified confirmation) | BZSt eVatR | REST |
 
 Live rolling 30-day uptime and p50/p95 latency per registry: [vatverify.dev/status](https://vatverify.dev/status). All numbers come from the public `GET /v1/status.json` endpoint, with no made-up SLAs.
 
@@ -105,6 +106,36 @@ await client.decide({ seller_vat: 'DE123456789', buyer_country: 'US' });
 ```
 
 `mechanism` is one of `'standard'`, `'reverse_charge'`, `'zero_rated'`, `'out_of_scope'`. Both VATs are validated against their live registries in the same call, so you get validation + decision for one quota unit, pooled with `/validate`.
+
+## BZSt §18e qualified confirmation
+
+German sellers shipping inside the EU need a *qualifizierte Bestätigungsmitteilung* from the Bundeszentralamt für Steuern (BZSt) as legal evidence under §18e UStG. The SDK calls BZSt's eVatR endpoint, returns a per-field A/B/C/D match grid (name / street / postcode / town), and stores the result for 10 years per German law. Business plan only.
+
+```ts
+const { data, meta } = await client.confirm({
+  vat_number: 'NL007051104B01',
+  company: {
+    name: 'ASML Netherlands B.V.',
+    street: 'De Run 6501',
+    postcode: '5504DR',
+    town: 'Veldhoven',
+  },
+});
+
+data.qualified;          // true only if every supplied field returned 'A'
+data.matches.name;       // 'A' | 'B' | 'C' | 'D'
+data.confirmation_id;    // your evidence id — retrievable for 10 years
+meta.bzst_status_code;   // 'evatr-0000' on full match
+meta.bzst_id;            // BZSt's own request identifier (independent evidence)
+```
+
+Retrieve a stored confirmation later:
+
+```ts
+const { data } = await client.confirmations.get(confirmationId);
+```
+
+Match codes: `A` matches, `B` does not match, `C` not requested, `D` not provided by the foreign EU registry. The requester VAT (a German VAT-IdNr.) defaults to the one stored on the API key; override per-call with `requester_vat_number`. Pass an `idempotency_key` UUID to safely retry on network flakes — replays return the same `confirmation_id` for 24h.
 
 ## Audit log
 

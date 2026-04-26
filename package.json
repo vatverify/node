@@ -1,6 +1,6 @@
 {
   "name": "@vatverify/node",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Official Node.js client for the vatverify API. Validate VAT numbers, run tax-rules decisions, fetch rates. Cross-runtime: Node 18+, Bun, Deno, Vercel Edge, Cloudflare Workers.",
   "keywords": [
     "vat",
