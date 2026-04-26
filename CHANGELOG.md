@@ -16,7 +16,7 @@ All notable changes to `@vatverify/node` are documented here. Format: [Keep a Ch
 - **`client.confirm(input)`** — BZSt §18e qualified VAT confirmation for German sellers. Returns per-field A/B/C/D match grid (name / street / postcode / town), the BZSt status code, and a 10-year-retention `confirmation_id`. Business plan only.
 - **`client.confirmations.get(id)`** — retrieve a stored §18e confirmation record by id. Idempotency-key replays return the same record for 24h.
 - **`bzst_id` field** on `ConfirmResponse.meta` and `ConfirmationRecord` — BZSt's own request identifier from the eVatR response, surfaced as a third immutable evidence reference alongside `request_id` and `confirmation_id`. Strengthens the §18e evidence chain.
-- New error class `BzstError` (base) plus `BzstInvalidRequesterError` and `BzstQualifiedFieldsMissingError` for the BZSt-specific failure modes.
+- New typed error classes for BZSt-specific failure modes: `BzstSessionLimitError`, `BzstUnavailableError`, `BzstRejectedError`. All extend `VatverifyError` and are importable from the main entry (also available at `@vatverify/node/errors`).
 
 ### Notes
 - Response shape verified against a live `evatr-0000` capture from BZSt's documented test pair (`DE123456789` + `ATU12345678` + Musterhaus envelope).
